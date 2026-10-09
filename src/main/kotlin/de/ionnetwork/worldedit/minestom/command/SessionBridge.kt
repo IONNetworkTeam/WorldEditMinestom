@@ -5,9 +5,9 @@ import com.sk89q.worldedit.extent.clipboard.BlockArrayClipboard
 import com.sk89q.worldedit.extent.clipboard.Clipboard
 import com.sk89q.worldedit.math.BlockVector3
 import com.sk89q.worldedit.regions.CuboidRegion
-import com.sk89q.worldedit.regions.selector.CuboidRegionSelector
 import com.sk89q.worldedit.session.ClipboardHolder
 import de.ionnetwork.minestomconversion.extension.edit.EditClipboard
+import de.ionnetwork.minestomconversion.extension.edit.EditPosition
 import de.ionnetwork.minestomconversion.extension.edit.EditSelection
 import de.ionnetwork.minestomconversion.extension.edit.EditTarget
 import de.ionnetwork.worldedit.minestom.platform.BlockAdapter
@@ -43,7 +43,7 @@ internal object SessionBridge {
     }
 
     fun seed(player: UUID, session: LocalSession, world: GuardedWorld, target: EditTarget) {
-        seedSelection(session, world, target.selection())
+        seedSelection(session, world, target)
         seedClipboard(player, session, target.clipboard())
     }
 
@@ -52,18 +52,15 @@ internal object SessionBridge {
         writeBackClipboard(player, session, target)
     }
 
-    private fun seedSelection(session: LocalSession, world: GuardedWorld, selection: EditSelection?) {
-        if (selection == null) {
-            session.setRegionSelector(world, CuboidRegionSelector(world))
-            return
-        }
+    /**
+     * Seeds corner by corner rather than from the finished box, so a selection the builder has only
+     * half made - one wand click, one `//pos1` - is half made in WorldEdit too, and the next corner
+     * completes it instead of starting over.
+     */
+    private fun seedSelection(session: LocalSession, world: GuardedWorld, target: EditTarget) {
         session.setRegionSelector(
             world,
-            CuboidRegionSelector(
-                world,
-                BlockVector3.at(selection.x1(), selection.y1(), selection.z1()),
-                BlockVector3.at(selection.x2(), selection.y2(), selection.z2())
-            )
+            CornerSelector(world, target.pos1()?.toWorldEdit(), target.pos2()?.toWorldEdit())
         )
     }
 
@@ -74,12 +71,24 @@ internal object SessionBridge {
      * rather than being replaced by a wrong bounding box that the wand would then appear to own.
      */
     private fun writeBackSelection(session: LocalSession, world: GuardedWorld, target: EditTarget) {
+        // Still the selector this bridge seeded: its corners travel back as they are, set or not,
+        // which is what carries a lone `//pos1` across. Commands that build a fresh selector of their
+        // own (`//chunk`) only ever leave a complete box, which the path below handles.
+        val selector = runCatching { session.getRegionSelector(world) }.getOrNull()
+        if (selector is CornerSelector) {
+            target.setPositions(selector.first?.toEdit(), selector.second?.toEdit())
+            return
+        }
         val region = runCatching { session.getSelection(world) }.getOrNull()
         if (region !is CuboidRegion) return
         val min = region.minimumPoint
         val max = region.maximumPoint
         target.setSelection(EditSelection(min.x(), min.y(), min.z(), max.x(), max.y(), max.z()))
     }
+
+    private fun EditPosition.toWorldEdit(): BlockVector3 = BlockVector3.at(x(), y(), z())
+
+    private fun BlockVector3.toEdit(): EditPosition = EditPosition(x(), y(), z())
 
     private fun seedClipboard(player: UUID, session: LocalSession, ion: EditClipboard?) {
         val synced = lastSynced[player]

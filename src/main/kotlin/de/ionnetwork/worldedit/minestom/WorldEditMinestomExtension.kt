@@ -166,7 +166,7 @@ class WorldEditMinestomExtension : Extension {
         val REQUIRED_TARGET_METHODS = listOf(
             "runOnMapThread", "ensureLoaded", "snapshotSection", "mapId", "minY", "maxY",
             "maxBlocks", "blockAt", "check", "canEverPlace", "beginEdit", "stage", "commitEdit",
-            "abortEdit", "selection", "setSelection", "clipboard", "setClipboard", "sendPrefixed",
+            "abortEdit", "selection", "setSelection", "pos1", "pos2", "setPositions", "clipboard", "setClipboard", "sendPrefixed",
             "reportProgress", "message"
         )
 

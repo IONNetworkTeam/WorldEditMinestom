@@ -4,6 +4,7 @@ import de.ionnetwork.minestomconversion.extension.edit.BlockSection
 import de.ionnetwork.minestomconversion.extension.edit.EditChange
 import de.ionnetwork.minestomconversion.extension.edit.EditChanges
 import de.ionnetwork.minestomconversion.extension.edit.EditClipboard
+import de.ionnetwork.minestomconversion.extension.edit.EditPosition
 import de.ionnetwork.minestomconversion.extension.edit.EditProgress
 import de.ionnetwork.minestomconversion.extension.edit.EditRejection
 import de.ionnetwork.minestomconversion.extension.edit.EditSelection
@@ -38,6 +39,9 @@ internal class FakeEditTarget(
     // Backing fields, not `selection`/`clipboard`: a Kotlin `var` of that name would generate the
     // same setSelection/setClipboard JVM signatures the interface already declares.
     var currentSelection: EditSelection? = null
+    /** The corners one at a time, like the build server keeps them; [currentSelection] once both are set. */
+    var corner1: EditPosition? = null
+    var corner2: EditPosition? = null
     var currentClipboard: EditClipboard? = null
     var loadedChunks = mutableSetOf<Pair<Int, Int>>()
 
@@ -129,6 +133,22 @@ internal class FakeEditTarget(
 
     override fun setSelection(selection: EditSelection?) {
         currentSelection = selection
+        corner1 = selection?.let { EditPosition(it.x1(), it.y1(), it.z1()) }
+        corner2 = selection?.let { EditPosition(it.x2(), it.y2(), it.z2()) }
+    }
+
+    override fun pos1(): EditPosition? = corner1
+
+    override fun pos2(): EditPosition? = corner2
+
+    override fun setPositions(pos1: EditPosition?, pos2: EditPosition?) {
+        corner1 = pos1
+        corner2 = pos2
+        currentSelection = if (pos1 != null && pos2 != null) {
+            EditSelection(pos1.x(), pos1.y(), pos1.z(), pos2.x(), pos2.y(), pos2.z())
+        } else {
+            null
+        }
     }
 
     override fun clipboard(): EditClipboard? = currentClipboard
