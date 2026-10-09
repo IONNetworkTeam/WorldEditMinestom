@@ -1,0 +1,8 @@
+build/
+.gradle/
+.idea/
+*.iml
+
+# WorldEdit's own working directory, created wherever the process runs - the tests boot a real
+# WorldEdit, so it appears in the repo root and unpacks a couple of megabytes of translations into it.
+worldedit/
